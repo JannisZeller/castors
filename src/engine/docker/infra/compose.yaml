@@ -1,0 +1,98 @@
+# Shared infrastructure stack for castors.
+#
+# This file is embedded in the `castors` binary at compile time (via
+# include_str!) and materialized to ~/.castors/.state/infra/compose.yaml on every
+# invocation of `castors add`. The binary is the source of truth; local edits
+# to the materialized file are overwritten.
+#
+# Proxy / network notes:
+# - `proxy` runs Squid from the published Ubuntu image; optional `mitm` adds mitmproxy (Compose profile `mitm`).
+# - `squid.conf` is rendered by the Rust code and mounted read-only.
+# - `shared` is an internal-only network. Castor containers attach only there,
+#   so they can reach Squid but cannot directly route to the internet.
+# - `egress` is only attached to Squid, giving the proxy the outbound route on
+#   behalf of castors.
+# - Named logs/cache volumes persist across `compose down` so operator data
+#   survives infra bounces.
+
+services:
+  proxy:
+    image: ubuntu/squid:5.2-22.04_beta
+    container_name: castors-infra-squid
+    restart: unless-stopped
+    labels:
+      castors.role: infra
+      castors.component: proxy
+    networks:
+      - egress
+      - shared
+    healthcheck:
+      test: ["CMD", "squid", "-k", "parse", "-f", "/etc/squid/squid.conf"]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+      start_period: 2s
+    volumes:
+      - ./squid.conf:/etc/squid/squid.conf:ro
+      - logs:/var/log/squid
+      - cache:/var/spool/squid
+
+  mitm:
+    image: mitmproxy/mitmproxy:12.2
+    container_name: castors-infra-mitm
+    restart: unless-stopped
+    profiles:
+      - mitm
+    labels:
+      castors.role: infra
+      castors.component: mitm
+    command:
+      - mitmdump
+      - --listen-host
+      - 0.0.0.0
+      - --listen-port
+      - "8080"
+      - -s
+      - /scripts/policy.py
+    expose:
+      - "8080"
+    networks:
+      - egress
+      - shared
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import socket; s=socket.create_connection(('127.0.0.1', 8080), 2); s.close()"
+      interval: 3s
+      timeout: 2s
+      retries: 5
+      start_period: 2s
+    volumes:
+      - ./mitm/config:/config:ro
+      - ./mitm/scripts:/scripts:ro
+      - mitm-ca:/home/mitmproxy/.mitmproxy
+    secrets:
+      - castors_policy_secrets
+
+networks:
+  shared:
+    name: castors-shared
+    driver: bridge
+    internal: true
+  egress:
+    name: castors-egress
+    driver: bridge
+
+volumes:
+  logs:
+    name: castors-proxy-logs
+  cache:
+    name: castors-proxy-cache
+  mitm-ca:
+    name: castors-mitm-ca
+
+secrets:
+  castors_policy_secrets:
+    file: ./mitm/config/castors-policy-secrets.json

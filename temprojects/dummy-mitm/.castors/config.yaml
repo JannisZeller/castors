@@ -1,0 +1,22 @@
+castor:
+  name: test-castor-mitm
+  image: castors-dummy-ca:latest
+
+network:
+  proxy: mitm
+  allowed_hosts:
+    - httpbin.org
+
+env:
+  CASTORS_SMOKE: "1"
+  RUST_LOG: debug
+
+secrets:
+  - host: httpbin.org
+    header: Authorization
+    value_template: "Bearer {{value}}"
+    value_from: env:USER
+  - host: httpbin.org
+    header: Test-Header-Project
+    value_template: "{{value}}"
+    value_from: file:test.secret

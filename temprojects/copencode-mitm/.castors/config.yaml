@@ -1,0 +1,21 @@
+castor:
+  name: copencode-mitm
+  image: copencode-ca:latest
+
+network:
+  proxy: mitm
+  allowed_hosts:
+    - taia.tngtech.com
+    - example.com
+    - httpbin.org
+
+env:
+  OPENAI_API_KEY: mock
+  CASTORS_SMOKE: "1"
+  RUST_LOG: debug
+
+secrets:
+  - host: taia.tngtech.com
+    header: Authorization
+    value_template: "Bearer {{value}}"
+    value_from: file:taia.secret

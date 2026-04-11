@@ -1,0 +1,23 @@
+castor:
+  name: test-castor-squid
+  image: castors-dummy:latest
+
+network:
+  proxy: squid
+  allowed_hosts:
+    - example.com
+    - httpbin.org
+
+env:
+  CASTORS_SMOKE: "1"
+  RUST_LOG: debug
+
+secrets:
+  - host: httpbin.org
+    header: Authorization
+    value_template: "Bearer {{value}}"
+    value_from: env:USER
+  - host: httpbin.org
+    header: Test-Header-Project
+    value_template: "{{value}}"
+    value_from: file:test.secret

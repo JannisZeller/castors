@@ -1,0 +1,6 @@
+**/*.env
+**/*.secret
+**/*.auth
+**/*.cursorignore
+**/*.ignore
+**/*.gitignore

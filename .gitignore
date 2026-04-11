@@ -1,0 +1,11 @@
+# tool specifics
+.cursor
+.idea
+
+# Added by cargo
+/target
+
+**/*.secret
+**/*.pem
+**/.DS_Store
+**/opencode.json
